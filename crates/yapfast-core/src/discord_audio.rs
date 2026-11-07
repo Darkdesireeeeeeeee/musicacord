@@ -731,6 +731,9 @@ impl CaptureRequest {
     /// chosen, and returns the one it used, or `denoiser` if the microphone
     /// didn't open.
     fn run(self, denoiser: Option<Denoiser>) -> Option<Denoiser> {
+        if yapfast_discord::voice::raw_stereo() {
+            return self.run_stereo(denoiser);
+        }
         let mut stream = match open_microphone(self.microphone.as_deref()) {
             Ok(stream) => {
                 let _ = self.opened.send(Ok(()));
@@ -776,7 +779,74 @@ impl CaptureRequest {
         let _ = self.track.pause();
         Some(processing.denoiser)
     }
+
+    /// Musicacord's raw stereo: captures both channels and sends them as
+    /// they come, without echo cancellation, noise suppression, gain control
+    /// or leveling. A plain level gate keeps Discord's speaking ring to sound:
+    /// it opens above [`STEREO_FLOOR`] and holds [`STEREO_HOLD`] after.
+    fn run_stereo(self, denoiser: Option<Denoiser>) -> Option<Denoiser> {
+        let mut stream = match LastingInput::<i16>::open(
+            self.microphone.as_deref(),
+            "Discord microphone",
+            SAMPLE_RATE,
+            2,
+            Duration::from_millis(10),
+        ) {
+            Ok(stream) => {
+                let _ = self.opened.send(Ok(()));
+                stream
+            }
+            Err(error) => {
+                let _ = self.opened.send(Err(error));
+                return denoiser;
+            }
+        };
+        let reverse = self.reverse.lock().unwrap();
+        let mut block = [0i16; BLOCK * 2];
+        let mut samples = [0f32; BLOCK * 2];
+        let mut loud_until: Option<Instant> = None;
+        let mut open = false;
+        while !self.stop.load(Ordering::Relaxed) {
+            stream.read(&mut block);
+            // Nothing cancels echo, so what played is only given back.
+            while let Ok(played) = reverse.try_recv() {
+                recycle(played);
+            }
+            for (out, sample) in samples.iter_mut().zip(block) {
+                *out = f32::from(sample) / 32768.0;
+            }
+            let power = samples.iter().map(|sample| sample * sample).sum::<f32>()
+                / samples.len() as f32;
+            let now = Instant::now();
+            if 10.0 * power.max(1e-12).log10() >= STEREO_FLOOR {
+                loud_until = Some(now + STEREO_HOLD);
+            }
+            let sounding = loud_until.is_some_and(|until| now < until);
+            if sounding != open {
+                open = sounding;
+                self.talking.store(open, Ordering::Relaxed);
+                let _ = if open {
+                    self.out.clear();
+                    self.track.play()
+                } else {
+                    self.track.pause()
+                };
+            }
+            if open {
+                self.out.push_stereo(&samples);
+            }
+        }
+        self.talking.store(false, Ordering::Relaxed);
+        let _ = self.track.pause();
+        denoiser
+    }
 }
+
+/// Raw stereo's gate opens on blocks louder than this, in RMS dBFS: low, so
+/// quiet passages of music still go out.
+const STEREO_FLOOR: f32 = -65.0;
+/// And stays open this long after the last such block.
+const STEREO_HOLD: Duration = Duration::from_millis(600);
 
 /// Runs a recording through the microphone's processing: raw mono 16-bit
 /// 48 kHz from `YAPFAST_AUDIO_IN`, written processed to `YAPFAST_AUDIO_OUT`, and

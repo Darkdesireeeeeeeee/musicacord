@@ -983,6 +983,9 @@ struct Layout {
     noise_strength: yapfast_core::noise::Strength,
     /// Discord calls take the room's reverb out of the microphone.
     reduce_room_echo: bool,
+    /// Musicacord: Discord calls send the microphone in true stereo, as
+    /// captured, without processing; off unless chosen.
+    stereo_voice: bool,
     /// The quietest speech Discord calls send, in dBFS; -60 unless changed.
     input_sensitivity: Option<i32>,
     /// Whether calls send the voice the gate hears or only while a key is
@@ -1229,6 +1232,9 @@ impl Layout {
         yapfast_core::noise::set_strength(self.noise_strength);
         window.set_dereverb(self.reduce_room_echo);
         yapfast_core::noise::set_dereverb(self.reduce_room_echo);
+        window.set_stereo_voice(self.stereo_voice);
+        #[cfg(feature = "discord")]
+        yapfast_core::yapfast_discord::voice::set_raw_stereo(self.stereo_voice);
         let sensitivity = self.sensitivity();
         window.set_sensitivity(sensitivity);
         yapfast_core::noise::set_sensitivity(sensitivity as f32);

@@ -452,6 +452,8 @@ export component VoiceSettings inherits VerticalLayout {
     in-out property <int> noise-strength;
     /// Discord calls take the room's reverb out of the microphone.
     in-out property <bool> dereverb;
+    /// Musicacord: the microphone goes out in true stereo, unprocessed.
+    in-out property <bool> stereo-voice;
     /// The quietest speech Discord calls send, in dBFS; and the microphone as
     /// the voice gate hears it, refreshed while this shows.
     in-out property <int> sensitivity: -60;
@@ -661,6 +663,12 @@ export component VoiceSettings inherits VerticalLayout {
         text: "Take out your room's echo in Discord calls";
         description: "For a bare or echoey room that makes your voice sound far away. Uses a little more processing, and your voice goes out 10 ms later.";
         checked <=> root.dereverb;
+        toggled => { root.preferences-changed(); }
+    }
+    if root.discord: SettingsSwitch {
+        text: "Voix stéréo (Musicacord)";
+        description: "Envoie ton micro ou ton câble virtuel (VB-Cable) en vraie stéréo, tel quel : sans anti-écho, anti-bruit, gain ni nivellement. Pour la musique. S'applique la prochaine fois que tu réactives ton micro ou rejoins un vocal.";
+        checked <=> root.stereo-voice;
         toggled => { root.preferences-changed(); }
     }
     VerticalLayout {

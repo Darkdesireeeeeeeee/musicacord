@@ -155,6 +155,7 @@ impl Call {
         let playing = Arc::new(AtomicBool::new(true));
         *lock(&self.sending) = Some(Sending {
             buffer: input.buffer,
+            stereo: input.stereo,
             playing: playing.clone(),
         });
         Track(playing)
@@ -243,12 +244,16 @@ impl Track {
 /// Audio for [`Call::play`]: the microphone's buffer.
 pub struct Input {
     buffer: Arc<Mutex<VecDeque<f32>>>,
+    stereo: Arc<AtomicBool>,
 }
 
-/// Where Yapfast writes the processed microphone, as mono f32 at 48 kHz.
+/// Where Yapfast writes the processed microphone, as mono f32 at 48 kHz, or
+/// with Musicacord's raw stereo, interleaved stereo f32 at 48 kHz.
 #[derive(Clone)]
 pub struct Microphone {
     buffer: Arc<Mutex<VecDeque<f32>>>,
+    /// Whether the buffer holds interleaved stereo, as the last push wrote.
+    stereo: Arc<AtomicBool>,
 }
 
 /// At most this much microphone audio waits to be sent; older audio is dropped
@@ -256,11 +261,36 @@ pub struct Microphone {
 /// Yapfast sends from just before its voice gate opens.
 const MICROPHONE_BACKLOG: usize = SAMPLE_RATE as usize / 4;
 
+/// Musicacord: the microphone goes out as captured, in true stereo and
+/// without echo cancellation, noise suppression, gain control or leveling,
+/// for music through a virtual cable. Off unless chosen; a microphone opened
+/// after a change follows it.
+static RAW_STEREO: AtomicBool = AtomicBool::new(false);
+
+pub fn set_raw_stereo(on: bool) {
+    RAW_STEREO.store(on, Ordering::Relaxed);
+}
+
+pub fn raw_stereo() -> bool {
+    RAW_STEREO.load(Ordering::Relaxed)
+}
+
 impl Microphone {
     pub fn push(&self, samples: &[f32]) {
+        self.stereo.store(false, Ordering::Relaxed);
         let mut buffer = lock(&self.buffer);
         buffer.extend(samples);
         let excess = buffer.len().saturating_sub(MICROPHONE_BACKLOG);
+        buffer.drain(..excess);
+    }
+
+    /// Musicacord: interleaved stereo samples, as [`raw_stereo`] sends them.
+    pub fn push_stereo(&self, samples: &[f32]) {
+        self.stereo.store(true, Ordering::Relaxed);
+        let mut buffer = lock(&self.buffer);
+        buffer.extend(samples);
+        // Whole frames go, so left stays left.
+        let excess = buffer.len().saturating_sub(MICROPHONE_BACKLOG * 2) & !1;
         buffer.drain(..excess);
     }
 
@@ -275,11 +305,13 @@ impl Microphone {
 pub fn live_microphone() -> (Microphone, Input) {
     let buffer: Arc<Mutex<VecDeque<f32>>> =
         Arc::new(Mutex::new(VecDeque::with_capacity(MICROPHONE_BACKLOG)));
+    let stereo = Arc::new(AtomicBool::new(false));
     (
         Microphone {
             buffer: buffer.clone(),
+            stereo: stereo.clone(),
         },
-        Input { buffer },
+        Input { buffer, stereo },
     )
 }
 

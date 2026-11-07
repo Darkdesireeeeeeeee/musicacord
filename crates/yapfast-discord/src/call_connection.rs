@@ -74,6 +74,8 @@ const RESUME_WAIT: Duration = Duration::from_secs(1);
 /// What the microphone sends: written by Yapfast, read every 20 ms.
 pub(crate) struct Sending {
     pub buffer: Arc<Mutex<VecDeque<f32>>>,
+    /// Musicacord: whether the buffer holds interleaved stereo.
+    pub stereo: Arc<AtomicBool>,
     pub playing: Arc<AtomicBool>,
 }
 
@@ -483,11 +485,20 @@ impl Media {
             match sending.as_ref() {
                 Some(sending) if sending.playing.load(Ordering::Relaxed) => {
                     let mut buffer = lock(&sending.buffer);
-                    let count = buffer.len().min(FRAME);
-                    for (out, sample) in self.pcm.chunks_exact_mut(2).zip(buffer.drain(..count)) {
-                        out.fill(sample);
+                    if sending.stereo.load(Ordering::Relaxed) {
+                        // Musicacord's raw stereo: both channels as captured.
+                        let count = buffer.len().min(FRAME * 2) & !1;
+                        for (out, sample) in self.pcm.iter_mut().zip(buffer.drain(..count)) {
+                            *out = sample;
+                        }
+                        self.pcm[count..].fill(0.0);
+                    } else {
+                        let count = buffer.len().min(FRAME);
+                        for (out, sample) in self.pcm.chunks_exact_mut(2).zip(buffer.drain(..count)) {
+                            out.fill(sample);
+                        }
+                        self.pcm[count * 2..].fill(0.0);
                     }
-                    self.pcm[count * 2..].fill(0.0);
                     true
                 }
                 _ => false,
