@@ -85,7 +85,13 @@ export component YapfastWindow inherits Window {
     callback close-window();
     // Opaque even while the wallpaper makes the chat see-through.
     background: Theme.chat.with-alpha(1);
-    default-font-family: "Atkinson Hyperlegible Next";
+    /// Musicacord: the typeface chosen in Appearance, empty for the own one;
+    /// the installed fonts offered, the own one first, and the one shown.
+    in property <string> font-family;
+    in property <[string]> fonts;
+    in property <int> font-index;
+    callback font-chosen(int);
+    default-font-family: root.font-family == "" ? "Atkinson Hyperlegible Next" : root.font-family;
     // default-font-family: "Satoshi";
     // Both faces' x-heights are about half their size, small, so text
     // defaults to 16px.
@@ -796,6 +802,8 @@ export component YapfastWindow inherits Window {
     in property <bool> friends-open;
     in property <[FriendRow]> friends;
     in property <[FriendRow]> friends-online;
+    /// Musicacord: the friends in a voice channel now, for In Voice Now.
+    in property <[FriendRow]> friends-in-voice;
     in property <int> friend-count;
     in-out property <string> friend-filter;
     /// The list shows all friends rather than those around.
@@ -2885,6 +2893,7 @@ export component YapfastWindow inherits Window {
                             if root.friends-open: FriendsScreen {
                                 width: parent.width; height: parent.height;
                                 rows: root.friends-all ? root.friends : root.friends-online;
+                                in-voice: root.friends-in-voice;
                                 all: root.friends-all; total: root.friend-count;
                                 filter <=> root.friend-filter;
                                 filter-edited => { root.friend-filter-edited(); }
@@ -3370,6 +3379,8 @@ export component YapfastWindow inherits Window {
             can-save: root.theme-can-save;
             system-title-bar <=> root.system-title-bar; title-bar-choice: root.title-bar-choice;
             title-bar-toggled => { root.title-bar-toggled(); }
+            fonts: root.fonts; font-index: root.font-index;
+            font-chosen(index) => { root.font-chosen(index); }
             choose-theme(id) => { root.choose-theme(id); }
             new-theme => { root.new-theme(); }
             edit-theme(id) => { root.edit-theme(id); }

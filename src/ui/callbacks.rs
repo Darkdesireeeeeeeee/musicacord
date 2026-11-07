@@ -10,6 +10,7 @@ pub(super) fn bind_callbacks(window: &YapfastWindow, adapter: &Rc<RefCell<Adapte
     super::server_settings::bind(window, adapter);
     super::channel_settings::bind(window, adapter);
     super::title_bar::bind(window, adapter);
+    super::fonts::bind(window, adapter);
     // UI bindings can request images while refresh borrows the adapter.
     // Deliver their requests in one batch after the current UI work.
     let pending = Rc::new(RefCell::new(HashSet::new()));

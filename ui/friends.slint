@@ -232,9 +232,47 @@ export component FriendItem inherits Rectangle {
     }
 }
 
+// Musicacord: a friend in a voice channel now, for In Voice Now. Their name
+// opens your DM with them; the channel, or the button, goes to it.
+component InVoiceItem inherits Rectangle {
+    in property <FriendRow> friend;
+    callback open-voice;
+    callback message;
+    height: 48px; border-radius: 8px;
+    background: Theme.raised;
+    accessible-role: button;
+    accessible-label: root.friend.name + ", in " + root.friend.voice-channel + " in " + root.friend.voice-server;
+    accessible-action-default => { root.open-voice(); }
+    HorizontalLayout {
+        padding-left: 10px; padding-right: 10px; spacing: 10px;
+        Middle {
+            Avatar { size: 28px; initial: root.friend.initial; tint: root.friend.tint; picture: root.friend.picture; picture-url: root.friend.picture-url; }
+        }
+        VerticalLayout {
+            alignment: center; spacing: 1px; horizontal-stretch: 1;
+            name := Text {
+                text: root.friend.name; color: Theme.text; font-size: 14px; font-weight: 700; overflow: elide;
+                TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.message(); } }
+            }
+            HorizontalLayout {
+                alignment: start;
+                VoiceSpot {
+                    channel: root.friend.voice-channel; server: root.friend.voice-server; compact: true;
+                    clicked => { root.open-voice(); }
+                }
+            }
+        }
+        Middle {
+            ActionButton { text: "Aller au salon"; small: true; clicked => { root.open-voice(); } }
+        }
+    }
+}
+
 /// The Discord friends list, in place of a conversation: those around, or all.
 export component FriendsScreen inherits Rectangle {
     in property <[FriendRow]> rows;
+    /// Musicacord: the friends in a voice channel now, shown above the list.
+    in property <[FriendRow]> in-voice;
     in property <bool> all;
     /// Friends in all, before the search.
     in property <int> total;
@@ -268,6 +306,18 @@ export component FriendsScreen inherits Rectangle {
             min-height: 36px; text-size: 15px; pad: 10px; fill: Theme.sunken; ring: false;
             placeholder: "Search"; label: "Search friends"; text <=> root.filter;
             edited => { root.filter-edited(); }
+        }
+        // Musicacord's In Voice Now: who is in a voice channel at the moment,
+        // and where; a click on the channel goes to it. Only the present: no
+        // history and no alerts.
+        if root.in-voice.length > 0: VerticalLayout {
+            spacing: 4px;
+            RequestsHeading { text: "EN VOCAL MAINTENANT — " + root.in-voice.length; }
+            for friend in root.in-voice: InVoiceItem {
+                friend: friend;
+                open-voice => { root.open-voice(friend.voice-room); }
+                message => { root.message(friend.id); }
+            }
         }
         RequestsHeading { text: (root.all ? "ALL FRIENDS — " : "ONLINE — ") + root.rows.length; }
         if root.rows.length == 0: HorizontalLayout {

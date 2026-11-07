@@ -569,6 +569,13 @@ impl Adapter {
             .cloned()
             .collect();
         update_model(&self.models.friends_online, around);
+        // Musicacord's In Voice Now: those in a voice channel at the moment.
+        let in_voice_now: Vec<_> = friend_rows
+            .iter()
+            .filter(|friend| !friend.voice_room.is_empty())
+            .cloned()
+            .collect();
+        update_model(&self.models.friends_in_voice, in_voice_now);
         update_model(&self.models.friends, friend_rows);
         window.set_friend_count(i32::try_from(state.friends.len()).unwrap_or(i32::MAX));
         // Those blocked, for Settings.

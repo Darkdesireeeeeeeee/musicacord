@@ -58,6 +58,7 @@ mod server_settings;
 mod shell;
 mod theme;
 mod tiles;
+mod fonts;
 mod title_bar;
 mod wallpaper;
 
@@ -986,6 +987,9 @@ struct Layout {
     /// Musicacord: Discord calls send the microphone in true stereo, as
     /// captured, without processing; off unless chosen.
     stereo_voice: bool,
+    /// Musicacord: the window's typeface, an installed family by name;
+    /// Musicacord's own unless chosen.
+    font_family: Option<String>,
     /// The quietest speech Discord calls send, in dBFS; -60 unless changed.
     input_sensitivity: Option<i32>,
     /// Whether calls send the voice the gate hears or only while a key is
@@ -1202,6 +1206,7 @@ impl Layout {
         window.set_theme_id(id.into());
         window.set_themes(theme::cards(&self.custom_themes));
         wallpaper::start(window);
+        fonts::show(window, self.font_family.as_deref());
         if let Some(width) = self.sidebar_width {
             window.set_sidebar_width(width);
         }
@@ -1405,6 +1410,8 @@ struct Models {
     /// Discord friends: all of them, and those around.
     friends: Rc<VecModel<FriendRow>>,
     friends_online: Rc<VecModel<FriendRow>>,
+    /// Musicacord: the friends in a voice channel now, for In Voice Now.
+    friends_in_voice: Rc<VecModel<FriendRow>>,
     /// Those the Discord account blocked, for Settings.
     blocked: Rc<VecModel<BlockedRow>>,
     /// Browse Channels' rows, after its search.
@@ -1461,6 +1468,7 @@ impl Models {
         window.set_entrance_servers(ModelRc::from(self.entrance_servers.clone()));
         window.set_friends(ModelRc::from(self.friends.clone()));
         window.set_friends_online(ModelRc::from(self.friends_online.clone()));
+        window.set_friends_in_voice(ModelRc::from(self.friends_in_voice.clone()));
         window.set_blocked_people(ModelRc::from(self.blocked.clone()));
         window.set_browse_rows(ModelRc::from(self.browse_rows.clone()));
         window.set_microphones(ModelRc::from(self.microphones.clone()));
