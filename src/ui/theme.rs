@@ -779,11 +779,16 @@ impl Theme {
     /// Shows the window in these colours. Returns whether colours that rows
     /// carry in their markup change, as rows built before have the old ones.
     pub fn apply(&self, window: &YapfastWindow) -> bool {
-        self.set(&window.global::<yapfast_ui::Theme>());
+        // Musicacord: the text colour chosen on its page, over the theme's.
+        let mut shown = *self;
+        if let Some(colour) = super::fonts::text_colour() {
+            shown.text = colour;
+        }
+        shown.set(&window.global::<yapfast_ui::Theme>());
         super::wallpaper::see_through(window, false);
         let rgb = |colour: Color| colour.as_argb_encoded() & 0xff_ffff;
         let mention = MENTION.replace(rgb(self.link)) != rgb(self.link);
-        let text = TEXT.replace(rgb(self.text)) != rgb(self.text);
+        let text = TEXT.replace(rgb(shown.text)) != rgb(shown.text);
         let muted = MUTED.replace(rgb(self.muted)) != rgb(self.muted);
         mention || text || muted
     }

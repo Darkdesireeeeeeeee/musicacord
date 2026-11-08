@@ -29,6 +29,7 @@ import { PersonRow, CallLink, CallLinkCard, LinkTouch, SignalIcon, VoiceDock, St
 import { ServerRow, RoomRow, StatusDot, ServerRail, ServerHeader, RoomList } from "rail.slint";
 import { StagedFile, StagedTile, Composer, MentionRow, MentionList, EmojiSuggestions, RequestBar } from "composer.slint";
 import { EmojiCell, EmojiRow, EmojiSection, MessageRow, ReactionToggle, EmojiButton, EmojiPicker, MessageMenu, MessageGallery, MessageStickers, FileCard, MessageContent, EmbedView, BotTag, NoConversation, ConversationStart, HistoryEdge, UnreadBar, PresentBar, ImageViewer, VideoViewer, VideoPlayer, Polls } from "messages.slint";
+import { LaunchApp, MusicacordSettings } from "settings.slint";
 import { SettingsRow, SettingsScreen, AccountSettings, AppearanceSettings, ThemeCard, ThemeColour, VoiceSettings, MessageSettings, NotificationSettings, SoundSettings, AdvancedSettings, DiscordLinkSettings, DiscordSettings, BlockedRow, GameActivitySettings, GameExecutable } from "settings.slint";
 import { MemberRow, ProfileData, ProfileServerRow, MemberPanel, ProfileCard, ServerCard, RoleCard } from "people.slint";
 import { RequestRow, FriendRow, FriendsScreen, HeaderTab, RequestsScreen, AddFriendDialog } from "friends.slint";
@@ -55,6 +56,7 @@ export { StagedFile, MentionRow } from "composer.slint";
 export { EmojiCell, EmojiRow, EmojiSection, ReactionChip, ImageCell, FileCell, EmbedField, EmbedFieldRow, EmbedCard, CardButtonStyle, CardButton, TextBlock, CardRowKind, CardRow, ComponentCard, MessageRow, VideoPlayer, PollAction, PollAnswerRow, PollCard, Polls } from "messages.slint";
 export { MemberRow, ProfileRole, ProfileRoleRow, ProfileServerRow, ProfileFriendRow, ProfileData, ActivityRow, ActivityClock } from "people.slint";
 export { RequestRow, FriendRow } from "friends.slint";
+export { LaunchApp } from "settings.slint";
 export { ContactRow, PlaceRow, ReactionPill, ReactorRow, PollAnswerDraft } from "dialogs.slint";
 export { FoundRow, PickRow } from "header.slint";
 export { GifTile, GifFavorites } from "gifs.slint";
@@ -91,6 +93,14 @@ export component YapfastWindow inherits Window {
     in property <[string]> fonts;
     in property <int> font-index;
     callback font-chosen(int);
+    /// Musicacord's page: the apps to start and where their list is, and the
+    /// colour of all text, #rrggbb or empty for the theme's.
+    in property <[LaunchApp]> launch-apps;
+    in property <string> launch-file;
+    callback launch-app(int);
+    callback edit-launch-file();
+    in-out property <string> text-colour;
+    callback text-colour-edited(string);
     default-font-family: root.font-family == "" ? "Atkinson Hyperlegible Next" : root.font-family;
     // default-font-family: "Satoshi";
     // Both faces' x-heights are about half their size, small, so text
@@ -3390,6 +3400,13 @@ export component YapfastWindow inherits Window {
             save-theme => { root.save-theme(); }
             cancel-theme => { root.cancel-theme(); }
             delete-theme => { root.delete-theme(); }
+        }
+        if root.settings-section == 9: MusicacordSettings {
+            apps: root.launch-apps; apps-file: root.launch-file;
+            launch(index) => { root.launch-app(index); }
+            edit-apps-file => { root.edit-launch-file(); }
+            text-colour <=> root.text-colour;
+            text-colour-edited(text) => { root.text-colour-edited(text); }
         }
         if root.settings-section == 1: VoiceSettings {
             microphones: root.microphones; microphone-index <=> root.microphone-index;

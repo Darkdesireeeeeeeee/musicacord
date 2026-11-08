@@ -326,7 +326,7 @@ export component SettingsCard inherits Rectangle {
 export component SettingsScreen inherits Rectangle {
     /// The section showing: 0 account, 1 voice and video, 2 messages,
     /// 3 notifications, 4 Discord, 5 sounds, 6 advanced, 7 appearance,
-    /// 8 game activity.
+    /// 8 game activity, 9 Musicacord.
     in-out property <int> settings-section;
     in property <bool> discord-build;
     in property <bool> preview;
@@ -344,6 +344,7 @@ export component SettingsScreen inherits Rectangle {
         { text: "Sounds", icon: @image-url("icons/volume-2.svg"), id: 5 },
         { text: "Discord", icon: @image-url("icons/discord.svg"), id: 4 },
         { text: "Game activity", icon: @image-url("icons/play.svg"), id: 8 },
+        { text: "Musicacord", icon: @image-url("icons/star.svg"), id: 9 },
         { text: "Advanced", icon: @image-url("icons/settings.svg"), id: 6 },
     ];
     property <[SettingsRow]> without-discord: [
@@ -354,6 +355,7 @@ export component SettingsScreen inherits Rectangle {
         { text: "Messages", icon: @image-url("icons/message-circle.svg"), id: 2 },
         { text: "Notifications", icon: @image-url("icons/bell.svg"), id: 3 },
         { text: "Sounds", icon: @image-url("icons/volume-2.svg"), id: 5 },
+        { text: "Musicacord", icon: @image-url("icons/star.svg"), id: 9 },
         { text: "Advanced", icon: @image-url("icons/settings.svg"), id: 6 },
     ];
     SettingsCard {
@@ -870,6 +872,66 @@ component ThemeColourRow inherits HorizontalLayout {
 // person's own. A click shows one at once. New theme opens the editor, whose
 // changes show at once too; Save keeps them, Cancel restores the theme from
 // before.
+// Musicacord: an app in Applis.txt, and whether its executable is there.
+export struct LaunchApp { name: string, found: bool }
+
+// Musicacord's own page: buttons that start the apps in Applis.txt, and the
+// colour of all text over the theme's.
+export component MusicacordSettings inherits VerticalLayout {
+    in property <[LaunchApp]> apps;
+    /// Where Applis.txt is.
+    in property <string> apps-file;
+    callback launch(int);
+    callback edit-apps-file();
+    /// A colour as #rrggbb, or empty for the theme's.
+    in-out property <string> text-colour;
+    callback text-colour-edited(string);
+    spacing: 16px;
+    SettingsTitle { text: "Musicacord"; }
+    VerticalLayout {
+        spacing: 8px;
+        SettingsHeading { text: "LANCER MES APPLIS"; }
+        if root.apps.length == 0: Text {
+            text: "Aucune appli pour l'instant : clique sur « Modifier la liste ».";
+            color: Theme.muted; font-size: 13px; wrap: word-wrap;
+        }
+        for app[index] in root.apps: ActionButton {
+            text: app.found ? app.name : app.name + " (introuvable)";
+            enabled: app.found;
+            clicked => { root.launch(index); }
+        }
+        HorizontalLayout {
+            alignment: start;
+            ActionButton { text: "Modifier la liste"; small: true; clicked => { root.edit-apps-file(); } }
+        }
+        Text {
+            text: "La liste est dans " + root.apps-file + " : une appli par ligne, « Nom = chemin de l'exe ». Un script « Lancer Nom.vbs » à côté de l'exe est lancé à sa place.";
+            color: Theme.muted; font-size: 13px; wrap: word-wrap;
+        }
+    }
+    VerticalLayout {
+        spacing: 8px;
+        SettingsHeading { text: "COULEUR DU TEXTE"; }
+        HorizontalLayout {
+            spacing: 10px;
+            TextField {
+                min-height: 36px; pad: 10px; fill: Theme.sunken;
+                placeholder: "#ff9ad5"; label: "Couleur du texte";
+                text <=> root.text-colour;
+                edited(text) => { root.text-colour-edited(text); }
+            }
+            Rectangle {
+                width: 36px; height: 36px; border-radius: 8px;
+                background: Theme.text; border-width: 1px; border-color: Theme.line;
+            }
+        }
+        Text {
+            text: "Une couleur comme #ff9ad5 pour tout le texte, par-dessus le thème. Vide : celle du thème.";
+            color: Theme.muted; font-size: 13px; wrap: word-wrap;
+        }
+    }
+}
+
 export component AppearanceSettings inherits VerticalLayout {
     in property <[ThemeCard]> themes;
     in property <string> theme-id;

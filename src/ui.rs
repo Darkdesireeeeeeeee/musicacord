@@ -59,6 +59,7 @@ mod shell;
 mod theme;
 mod tiles;
 mod fonts;
+mod launcher;
 mod title_bar;
 mod wallpaper;
 
@@ -990,6 +991,8 @@ struct Layout {
     /// Musicacord: the window's typeface, an installed family by name;
     /// Musicacord's own unless chosen.
     font_family: Option<String>,
+    /// Musicacord: the colour of all text over the theme's, as #rrggbb.
+    text_colour: Option<String>,
     /// The quietest speech Discord calls send, in dBFS; -60 unless changed.
     input_sensitivity: Option<i32>,
     /// Whether calls send the voice the gate hears or only while a key is
@@ -1202,11 +1205,14 @@ impl Layout {
         // Before the first frame, which the event loop draws. A window made
         // again, after closing to the tray, keeps the theme this way too.
         let (id, chosen) = theme::chosen(self.theme.as_deref(), &self.custom_themes);
+        fonts::set_text_colour(self.text_colour.as_deref().and_then(theme::parse));
+        window.set_text_colour(self.text_colour.as_deref().unwrap_or_default().into());
         chosen.apply(window);
         window.set_theme_id(id.into());
         window.set_themes(theme::cards(&self.custom_themes));
         wallpaper::start(window);
         fonts::show(window, self.font_family.as_deref());
+        launcher::show(window);
         if let Some(width) = self.sidebar_width {
             window.set_sidebar_width(width);
         }

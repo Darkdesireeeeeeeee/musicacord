@@ -9,6 +9,21 @@ use super::*;
 /// The first choice, which keeps the typeface `ui/yapfast.slint` names.
 const OWN: &str = "(Police de Musicacord)";
 
+thread_local! {
+    /// The colour of all text over the theme's, while one is chosen.
+    static TEXT_COLOUR: std::cell::Cell<Option<slint::Color>> = const { std::cell::Cell::new(None) };
+}
+
+/// The colour text takes over the theme's, which [`theme::Theme::apply`]
+/// shows; none for the theme's own.
+pub(super) fn set_text_colour(colour: Option<slint::Color>) {
+    TEXT_COLOUR.set(colour);
+}
+
+pub(super) fn text_colour() -> Option<slint::Color> {
+    TEXT_COLOUR.get()
+}
+
 /// The installed families, by name, without case, once each.
 fn families() -> Vec<String> {
     let mut names: Vec<String> = shared_collection()
@@ -36,8 +51,31 @@ pub(super) fn show(window: &YapfastWindow, chosen: Option<&str>) {
     window.set_font_index(index as i32);
 }
 
-pub(super) fn bind(window: &YapfastWindow, adapter: &Rc<RefCell<Adapter>>) {
-    let adapter = Rc::downgrade(adapter);
+pub(super) fn bind(window: &YapfastWindow, shared: &Rc<RefCell<Adapter>>) {
+    let adapter = Rc::downgrade(shared);
+    let weak = window.as_weak();
+    window.on_text_colour_edited(move |text| {
+        let (Some(adapter), Some(window)) = (adapter.upgrade(), weak.upgrade()) else {
+            return;
+        };
+        let text = text.trim();
+        // A colour half typed changes nothing until it parses; empty is the theme's.
+        let colour = if text.is_empty() {
+            None
+        } else {
+            match theme::parse(text) {
+                Some(colour) => Some(colour),
+                None => return,
+            }
+        };
+        set_text_colour(colour);
+        let mut adapter = adapter.borrow_mut();
+        adapter.layout.text_colour = colour.map(|_| text.to_owned());
+        // Shows the theme again, with the colour over it, and writes the layout.
+        let id = window.get_theme_id().to_string();
+        adapter.choose_theme(&window, &id);
+    });
+    let adapter = Rc::downgrade(shared);
     let weak = window.as_weak();
     window.on_font_chosen(move |index| {
         let (Some(adapter), Some(window)) = (adapter.upgrade(), weak.upgrade()) else {
